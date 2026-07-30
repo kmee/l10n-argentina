@@ -11,7 +11,7 @@
             <field eval="True" name="perm_unlink" />
             <field
                 name="domain_force"
-            >[('company_id','child_of',[user.company_id.id])]</field>
+            >[('company_id', 'in', company_ids)]</field>
         </record>
 </data>
 </odoo>

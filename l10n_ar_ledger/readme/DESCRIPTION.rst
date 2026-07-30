@@ -1,9 +1,10 @@
-Extra Partner Data and Padrón for Argentina
+VAT Ledger (Libro IVA) for Argentina.
 
-This module adds extra data for Argentina partner and AFIP Padrón A5.
+Generates the sale and purchase VAT ledger for a period (invoices grouped by
+tax rate, with subtotal per aliquot) and the digital files required by AFIP/
+ARCA's RG 3685 (Régimen de Información de Compras y Ventas): the header,
+voucher and aliquot TXT layouts (``REGDIGITAL_CV_CBTE``,
+``REGDIGITAL_CV_ALICUOTAS``, ``REGDIGITAL_CV_COMPRAS_IMPORTACIONES``).
 
-In order to access the online database of each taxpayer, it is necessary to validate the computer.
-In AFIP Portal go to "Administrador de Relaciones", then select the company in the dropdown "Autoridad de Aplicación".
-Click on "Adherir Servicio" button. Search the service on AFIP > WebServices and select "Servicio Consulta Padron A5".
-On "Incorporar nueva Relación" click the button "Buscar" of "Representante" and then select the computer on "Computador Fiscal" dropdown.
-Click the "Confirmar" button for end.
+Migrated from the OCA 14.0 branch. See the module's ROADMAP for known gaps
+in the digital file generation.
