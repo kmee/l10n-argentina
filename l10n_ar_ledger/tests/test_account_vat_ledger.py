@@ -97,3 +97,71 @@ class TestAccountVatLedger(TestAr):
             "field 19 must match the number of REGDIGITAL_CV_ALICUOTAS records",
         )
         self.assertEqual(self.ledger._get_aliquots(invoice), 1)
+
+    def _purchase_bill(self, number, lines):
+        """Post a vendor bill A with ``lines`` as (product, price, taxes)."""
+        doc_type = self.env.ref("l10n_ar.dc_a_f")
+        doc_type.export_to_digital = True
+        journal = self.env["account.journal"].search(
+            [("type", "=", "purchase"), ("company_id", "=", self.company_ri.id)],
+            limit=1,
+        )
+        bill = self.env["account.move"].create(
+            {
+                "move_type": "in_invoice",
+                "journal_id": journal.id,
+                "partner_id": self.res_partner_adhoc.id,
+                "invoice_date": "2026-06-21",
+                "l10n_latam_document_type_id": doc_type.id,
+                "l10n_latam_document_number": number,
+                "invoice_line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "product_id": product.id,
+                            "quantity": 1.0,
+                            "price_unit": price,
+                            "tax_ids": [(6, 0, taxes.ids)],
+                        },
+                    )
+                    for product, price, taxes in lines
+                ],
+            }
+        )
+        bill.action_post()
+        return bill, journal
+
+    def test_purchase_computable_vat_credit_is_the_vat_only(self):
+        """Field 21 (Credito Fiscal Computable) without proration is the VAT
+        assessed of the voucher (ARCA specification, field 21, positions
+        240 to 254): it must not add the taxable base nor the untaxed amounts.
+        """
+        tax_105 = self._search_tax("iva_105", "purchase")
+        bill, journal = self._purchase_bill(
+            "00001-00000457",
+            [
+                (self.product_iva_21, 500.0, self.tax_21_purchase),
+                (self.product_iva_105, 1000.0, tax_105),
+                (self.product_no_gravado, 200.0, self.tax_no_gravado_purchase),
+            ],
+        )
+        ledger = self.env["account.vat.ledger"].new(
+            {
+                "type": "purchase",
+                "company_id": self.company_ri.id,
+                "journal_ids": [(6, 0, journal.ids)],
+                "date_from": "2026-06-01",
+                "date_to": "2026-06-30",
+            }
+        )
+        # Reading the computed vouchers first is what the form does.
+        self.assertTrue(ledger.invoice_ids)
+        self.assertEqual(ledger.get_digital_invoices().ids, bill.ids)
+        ledger.compute_digital_data()
+        rows = ledger.REGDIGITAL_CV_CBTE.split("\r\n")
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(rows[0]), 325)
+        # Field 21 sits at positions 240 to 254.
+        # 21% on 500.00 plus 10.5% on 1000.00: 105.00 + 105.00 of VAT.
+        self.assertEqual(rows[0][239:254], "000000000021000")
